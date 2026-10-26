@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+const { createProxyMiddleware, fixRequestBody } = require('http-proxy-middleware');
 const rateLimit = require('express-rate-limit');
 const winston   = require('winston');
 const auth      = require('./middlewares/auth');
@@ -39,6 +39,15 @@ app.use('/auth/login', require('./routes/auth'));
 const proxyOpts = (target, name) => ({
   target,
   changeOrigin: true,
+  pathRewrite: { '^/api': '' },
+  onProxyReq: fixRequestBody,
+  onError: (err, req, res) => {
+    logger.error(`[${name}] ${err.message}`);
+    res.status(503).json({
+      error: `Servicio ${name} no disponible`,
+      detalle: err.message
+    });
+  },
   on: {
     error: (err, req, res) => {
       logger.error(`[${name}] ${err.message}`);
